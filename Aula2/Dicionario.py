@@ -1,6 +1,6 @@
 treinamento_IA = {
   "Integrantes": ["Evandro", "Luigi", "Evelyn", "Marcelo", "Pedro", "Gustavo", "Mateus", "Felipe"],
-  "Cargos": ["Professor, estudante"]
+  "Cargos": ["Professor", "estudante"]
 }
 
 print(treinamento_IA["Integrantes"])
