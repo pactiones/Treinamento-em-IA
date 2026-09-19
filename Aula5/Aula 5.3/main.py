@@ -28,7 +28,7 @@ num_cols = ["age", "fare", "sibsp", "parch"]
 cat_cols = ["sex", "embarked", "pclass"]
 
 assert set(num_cols + cat_cols) == set(X_tr.columns)
-print(set(num_cols + cat_cols) == set(X_tr.columns))
+print(set(num_cols + cat_cols) == set(X_tr.columns))    
 
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -53,7 +53,7 @@ prep = ColumnTransformer([
     ("cat", cat_pipe, cat_cols)
 ])
 
-print(prep.fit_transform(X_tr).shape)
+print(prep.fit_transform(X_tr).shape)   
 
 #Modelo inteiro em um objeto
 from sklearn.linear_model import LogisticRegression
