@@ -44,9 +44,6 @@ class RegressaoLogistica:
         Xb = self._com_intercepto(np.asarray(X, dtype=float))
         y = np.asarray(y, dtype=float).reshape(-1)
 
-        if Xb.shape[0] != y.shape[0]:
-            raise ValueError("X e y devem ter o mesmo numero de exemplos.")
-
         self.beta = np.zeros(Xb.shape[1])
         self.historico = []
         m = len(y)
