@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Laboratório da Árvore de Decisão</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: bancada de laboratório — plano de decisão e árvore lado a lado, cálculos do nó logo abaixo, tudo ligado.
+   Identidade herdada dos slides da Escolinha de IA (grafite + esmeralda, Space Grotesk / IBM Plex / JetBrains Mono). */
+:root {
+  --bg: #0d1210;
+  --panel: #141b18;
+  --panel-2: #1a2320;
+  --line: #27322e;
+  --fg: #e4ece8;
+  --muted: #8ea097;
+  --accent: #34d399;      /* esmeralda: interface, seleção */
+  --hi: #f5faf7;          /* percurso do cliente */
+  --c0: #f4ba64;          /* classe 0 — não comprou */
+  --c1: #35d49a;          /* classe 1 — comprou */
+  --c0-fill: rgba(244,186,100,.13);
+  --c1-fill: rgba(53,212,154,.13);
+  --danger: #f08a7a;
+  --font-display: "Space Grotesk", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f6f4; --panel: #ffffff; --panel-2: #f6f9f7; --line: #d6dfda;
+    --fg: #14201b; --muted: #5a6b63; --accent: #0f8a5f; --hi: #14201b;
+    --c0: #c7841c; --c1: #149c68; --c0-fill: rgba(199,132,28,.13); --c1-fill: rgba(20,156,104,.12);
+    --danger: #b9473a; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f3f6f4; --panel: #ffffff; --panel-2: #f6f9f7; --line: #d6dfda;
+  --fg: #14201b; --muted: #5a6b63; --accent: #0f8a5f; --hi: #14201b;
+  --c0: #c7841c; --c1: #149c68; --c0-fill: rgba(199,132,28,.13); --c1-fill: rgba(20,156,104,.12);
+  --danger: #b9473a; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 28px 56px; display: grid; gap: 20px; }
+
+header { display: grid; gap: 10px; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(28px, 4vw, 42px)/1.05 var(--font-display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.lede { margin: 0; max-width: 72ch; color: var(--muted); }
+.lede b { color: var(--fg); font-weight: 600; }
+
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.stat { padding: 12px 16px; display: grid; gap: 2px; border-right: 1px solid var(--line); min-width: 0; }
+.stat:last-child { border-right: 0; }
+.stat span { font: 500 11px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stat strong { font: 700 22px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; }
+.stat strong.good { color: var(--accent); }
+
+.row { display: grid; gap: 20px; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font: 600 13px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.panel h2 em { font-style: normal; color: var(--fg); text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-weight: 500; font-size: 13px; }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 500 13px/1 var(--font-body); padding: 8px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dot.c0 { background: var(--c0); } .dot.c1 { background: var(--c1); }
+.btn { border: 1px solid var(--line); background: transparent; color: var(--fg); font: 500 13px/1 var(--font-body); padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.btn:hover, .seg button:hover { color: var(--fg); background: var(--panel-2); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.plot-box { position: relative; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; }
+.plot-box canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ring { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--muted); display: inline-block; }
+.star { color: var(--hi); font-size: 14px; line-height: 1; }
+
+.controls { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ctl { display: grid; gap: 6px; min-width: 0; }
+.ctl label { display: flex; justify-content: space-between; gap: 6px; font: 500 12px/1.2 var(--font-mono); color: var(--muted); }
+.ctl label output { color: var(--fg); font-weight: 700; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.tree-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+.tree-scroll svg { display: block; margin: 0 auto; }
+
+.node { cursor: pointer; }
+.node rect.box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; }
+.node.leaf rect.box { fill: var(--panel-2); }
+.node.sel rect.box { stroke: var(--accent); stroke-width: 2.4; }
+.node.hov rect.box { stroke: var(--fg); }
+.node.onpath rect.box { stroke: var(--hi); stroke-width: 2; }
+.node.sel.onpath rect.box { stroke: var(--accent); stroke-width: 2.6; }
+.node text { fill: var(--fg); font-family: var(--font-mono); }
+.node text.sub { fill: var(--muted); }
+.edge { stroke: var(--line); stroke-width: 1.6; fill: none; }
+.edge.onpath { stroke: var(--hi); stroke-width: 2.6; }
+.edge-label { fill: var(--muted); font: 500 11px var(--font-mono); }
+.edge-label.onpath { fill: var(--hi); }
+
+.math { font: 13px/1.75 var(--font-mono); font-variant-numeric: tabular-nums; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; }
+.math .k { color: var(--muted); }
+.math .v { color: var(--fg); font-weight: 700; }
+.math .a { color: var(--accent); font-weight: 700; }
+.math .z0 { color: var(--c0); } .math .z1 { color: var(--c1); }
+.pill { display: inline-block; font: 600 11px/1 var(--font-mono); letter-spacing: .04em; padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.stop { color: var(--c0); border-color: color-mix(in srgb, var(--c0) 45%, transparent); }
+.pill.split { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+.cands { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cand-chart { display: grid; gap: 4px; min-width: 0; }
+.cand-chart h3 { margin: 0; font: 600 12px/1.2 var(--font-mono); color: var(--fg); }
+.cand-chart svg { width: 100%; height: auto; display: block; }
+.cand-chart svg text { fill: var(--muted); font: 10px var(--font-mono); }
+.axis { stroke: var(--line); }
+.grid { stroke: var(--line); stroke-dasharray: 2 4; }
+.cpt { cursor: pointer; }
+.readout { min-height: 3.2em; font: 12.5px/1.6 var(--font-mono); color: var(--muted); }
+.readout b { color: var(--fg); }
+
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font: 12.5px/1.4 var(--font-mono); font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+tbody tr { cursor: pointer; }
+tbody tr:hover, tbody tr.on { background: var(--panel-2); }
+tbody tr.best td:first-child { color: var(--accent); font-weight: 700; }
+td.bad { color: var(--muted); text-decoration: line-through; }
+
+.probe-in { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.probe-in label { display: grid; gap: 4px; font: 500 12px/1 var(--font-mono); color: var(--muted); }
+.probe-in input { width: 92px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 600 14px var(--font-mono); }
+ol.path { margin: 0; padding-left: 22px; display: grid; gap: 6px; font: 13px/1.5 var(--font-mono); }
+ol.path li::marker { color: var(--muted); }
+.yes { color: var(--accent); font-weight: 700; } .no { color: var(--c0); font-weight: 700; }
+.verdict { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 14px; }
+.verdict strong { font-family: var(--font-mono); }
+
+.depth svg { width: 100%; height: auto; display: block; }
+.depth svg text { fill: var(--muted); font: 11px var(--font-mono); }
+.depth .dcol { cursor: pointer; }
+.foot { font-size: 12.5px; color: var(--muted); max-width: 80ch; }
+.foot code { font-family: var(--font-mono); color: var(--fg); }
+
+@media (max-width: 920px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(2n) { border-right: 0; }
+  .stat { border-bottom: 1px solid var(--line); }
+  .controls { grid-template-columns: minmax(0, 1fr); }
+  .cands { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .node rect.box, .edge { transition: stroke .15s, stroke-width .15s; }
+}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Aula 6.9 · Módulo 06 · ML na mão, com NumPy</div>
+    <h1>Árvore de Decisão do zero</h1>
+    <p class="lede">Os 24 clientes do exercício guiado (idade × visitas à loja no mês). <b>Clique no plano</b> para adicionar clientes, arraste ou apague pontos, e mexa nos hiperparâmetros: a árvore é reconstruída na hora, com o mesmo algoritmo dos slides — Gini, melhor corte por pontos médios e construção recursiva. <b>Clique num nó</b> para ver o Gini calculado à mão e todos os cortes que ele testou.</p>
+  </header>
+
+  <section class="stats" aria-label="Resumo da árvore atual">
+    <div class="stat"><span>Acurácia treino</span><strong id="st-train">–</strong></div>
+    <div class="stat"><span>Acurácia teste</span><strong id="st-test" class="good">–</strong></div>
+    <div class="stat"><span>Profundidade</span><strong id="st-depth">–</strong></div>
+    <div class="stat"><span>Folhas · nós</span><strong id="st-leaves">–</strong></div>
+    <div class="stat"><span>Gini da raiz</span><strong id="st-gini">–</strong></div>
+  </section>
+
+  <div class="row">
+    <section class="panel" aria-labelledby="h-plano">
+      <h2 id="h-plano">Plano de decisão <em>Idade (anos) × Visitas no mês</em></h2>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Ação do clique no plano">
+          <button id="m-add1" aria-pressed="true"><i class="dot c1"></i>Adicionar comprou</button>
+          <button id="m-add0" aria-pressed="false"><i class="dot c0"></i>Adicionar não comprou</button>
+          <button id="m-move" aria-pressed="false">Arrastar</button>
+          <button id="m-del" aria-pressed="false">Apagar</button>
+        </div>
+        <label class="check"><input type="checkbox" id="show-test" checked> Mostrar teste</label>
+        <button class="btn" id="reset">Restaurar dados da aula</button>
+        <button class="btn" id="clear">Limpar</button>
+      </div>
+      <div class="plot-box"><canvas id="plot" aria-label="Gráfico de dispersão com as regiões de decisão da árvore"></canvas></div>
+      <div class="legend">
+        <span><i class="dot c1"></i>1 · comprou</span>
+        <span><i class="dot c0"></i>0 · não comprou</span>
+        <span><i class="ring"></i>cliente de teste (a árvore não vê)</span>
+        <span><b class="star">✦</b>cliente sendo explicado</span>
+      </div>
+      <p class="hint">Passe o mouse no plano para mover o cliente explicado; o caminho dele acende na árvore.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-arvore">
+      <h2 id="h-arvore">Árvore treinada <em>esquerda = Sim (≤) · direita = Não</em></h2>
+      <div class="controls">
+        <div class="ctl">
+          <label for="p-depth">max_depth <output id="o-depth">3</output></label>
+          <input type="range" id="p-depth" min="0" max="7" step="1" value="3">
+        </div>
+        <div class="ctl">
+          <label for="p-split">min_samples_split <output id="o-split">2</output></label>
+          <input type="range" id="p-split" min="2" max="12" step="1" value="2">
+        </div>
+        <div class="ctl">
+          <label for="p-leaf">min_samples_leaf <output id="o-leaf">1</output></label>
+          <input type="range" id="p-leaf" min="1" max="6" step="1" value="1">
+        </div>
+      </div>
+      <div class="tree-scroll"><svg id="tree" role="img" aria-label="Diagrama da árvore de decisão"></svg></div>
+      <p class="hint">Barra de cada nó: proporção de <span style="color:var(--c0)">não comprou</span> e <span style="color:var(--c1)">comprou</span> entre as amostras de treino que chegaram nele.</p>
+    </section>
+  </div>
+
+  <div class="row">
+    <section class="panel" aria-labelledby="h-no">
+      <h2 id="h-no">Nó selecionado <em id="no-titulo">Raiz</em></h2>
+      <div id="no-status"></div>
+      <div class="math" id="gini-math"></div>
+      <div class="math" id="pond-math"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-cortes">
+      <h2 id="h-cortes">Busca do melhor corte <em id="cortes-sub">–</em></h2>
+      <div class="cands">
+        <div class="cand-chart"><h3>Idade ≤ limiar</h3><svg id="cand0" viewBox="0 0 300 170"></svg></div>
+        <div class="cand-chart"><h3>Visitas ≤ limiar</h3><svg id="cand1" viewBox="0 0 300 170"></svg></div>
+      </div>
+      <div class="readout" id="cand-readout"></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pergunta</th><th>Esq. [0|1]</th><th>Dir. [0|1]</th><th>Ponderado</th><th>Ganho</th></tr></thead>
+          <tbody id="cand-table"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="row">
+    <section class="panel" aria-labelledby="h-percurso">
+      <h2 id="h-percurso">Percurso de um cliente <em>prever_amostra()</em></h2>
+      <div class="probe-in">
+        <label for="pr-idade">Idade<input type="number" id="pr-idade" min="15" max="68" step="1" value="52"></label>
+        <label for="pr-vis">Visitas<input type="number" id="pr-vis" min="0" max="12" step="1" value="9"></label>
+        <button class="btn" id="pr-slide">Cliente dos slides (52 anos, 9 visitas)</button>
+      </div>
+      <ol class="path" id="path-list"></ol>
+      <div class="verdict" id="verdict"></div>
+    </section>
+
+    <section class="panel depth" aria-labelledby="h-depth">
+      <h2 id="h-depth">Profundidade × acurácia <em>clique numa coluna para usar esse max_depth</em></h2>
+      <svg id="depth" viewBox="0 0 420 230"></svg>
+      <p class="hint" id="depth-note"></p>
+    </section>
+  </div>
+
+  <p class="foot">Regras idênticas às do <code>ArvoreDecisaoDoZero</code> da aula: candidatos são os pontos médios entre valores consecutivos de cada coluna; vence o <b>menor Gini ponderado</b> (em empate, o primeiro encontrado: Idade antes de Visitas, limiar menor antes do maior); o nó vira folha se for puro, se atingir <code>max_depth</code>, se tiver menos de <code>min_samples_split</code> amostras, se nenhum corte deixar <code>min_samples_leaf</code> em cada lado ou se nenhum corte reduzir a impureza. A folha prevê a classe majoritária. Divisão treino/teste igual à do notebook: <code>train_test_split(test_size=0.25, random_state=42, stratify=y)</code>.</p>
+</div>
+
+<script>
+/* ===================== DADOS (etapa 02 do exercício guiado) ===================== */
+const NOMES = ["Idade", "Visitas"];
+const DOM = [[15, 68], [0, 12]];
+const X_AULA = [[19,1],[25,6],[22,6],[28,8],[24,2],[31,3],[27,3],[34,9],[35,2],[36,5],[41,3],[39,8],
+                [47,1],[42,6],[55,4],[45,10],[58,8],[29,4],[61,6],[48,7],[64,9],[33,11],[38,4],[52,9]];
+const Y_AULA = [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1];
+// clientes que o train_test_split(test_size=0.25, random_state=42, stratify=y) manda para o teste
+const TESTE_AULA = new Set(["47,1", "52,9", "45,10", "31,3", "27,3", "55,4"]);
+
+let nextId = 1;
+function dadosDaAula() {
+  return X_AULA.map((x, i) => ({ id: nextId++, x: x.slice(), y: Y_AULA[i], test: TESTE_AULA.has(x.join(",")) }));
+}
+
+/* ===================== ALGORITMO (mesmo dos slides) ===================== */
+function contar(ys) { let c0 = 0, c1 = 0; for (const v of ys) v === 1 ? c1++ : c0++; return [c0, c1]; }
+function gini(ys) {
+  if (ys.length === 0) return 0;
+  const [c0, c1] = contar(ys), n = ys.length;
+  return 1 - ((c0 / n) ** 2 + (c1 / n) ** 2);
+}
+function giniPonderado(yE, yD) {
+  const n = yE.length + yD.length;
+  if (n === 0) return 0;
+  return yE.length / n * gini(yE) + yD.length / n * gini(yD);
+}
+// todos os cortes candidatos de um conjunto de amostras
+function candidatos(pts, minLeaf) {
+  const out = [];
+  for (let col = 0; col < 2; col++) {
+    const vals = [...new Set(pts.map(p => p.x[col]))].sort((a, b) => a - b);
+    for (let i = 0; i < vals.length - 1; i++) {
+      const t = (vals[i] + vals[i + 1]) / 2;
+      const yE = [], yD = [];
+      for (const p of pts) (p.x[col] <= t ? yE : yD).push(p.y);
+      out.push({ col, t, imp: giniPonderado(yE, yD), cE: contar(yE), cD: contar(yD),
+                 gE: gini(yE), gD: gini(yD), nE: yE.length, nD: yD.length,
+                 valido: yE.length >= minLeaf && yD.length >= minLeaf });
+    }
+  }
+  return out;
+}
+function melhorDivisao(cands) {
+  let best = null;
+  for (const c of cands) if (c.valido && (best === null || c.imp < best.imp)) best = c;
+  return best;
+}
+function construir(pts, depth, P, path, bounds) {
+  const ys = pts.map(p => p.y), c = contar(ys);
+  const no = { id: path, depth, samples: pts.length, counts: c, impureza: gini(ys),
+               classe: c[1] > c[0] ? 1 : 0, bounds, pts, left: null, right: null,
+               feature: null, threshold: null, motivo: null };
+  if (pts.length === 0) { no.motivo = "nó vazio"; return no; }
+  if (no.impureza === 0) { no.motivo = "nó puro (Gini = 0)"; return no; }
+  if (P.maxDepth !== null && depth >= P.maxDepth) { no.motivo = `atingiu max_depth = ${P.maxDepth}`; return no; }
+  if (pts.length < P.minSplit) { no.motivo = `${pts.length} amostras < min_samples_split = ${P.minSplit}`; return no; }
+  const cands = candidatos(pts, P.minLeaf);
+  const best = melhorDivisao(cands);
+  if (!best) { no.motivo = cands.length ? `nenhum corte deixa ${P.minLeaf}+ amostras em cada lado` : "todos os valores são iguais"; return no; }
+  if (best.imp >= no.impureza - 1e-12) { no.motivo = "nenhum corte reduz a impureza"; return no; }
+  no.feature = best.col; no.threshold = best.t; no.impPond = best.imp;
+  const bE = bounds.map(b => b.slice()), bD = bounds.map(b => b.slice());
+  bE[best.col][1] = best.t; bD[best.col][0] = best.t;
+  no.left = construir(pts.filter(p => p.x[best.col] <= best.t), depth + 1, P, path + "L", bE);
+  no.right = construir(pts.filter(p => p.x[best.col] > best.t), depth + 1, P, path + "R", bD);
+  return no;
+}
+const ehFolha = no => no.left === null;
+function preverAmostra(x, no) {
+  while (!ehFolha(no)) no = x[no.feature] <= no.threshold ? no.left : no.right;
+  return no;
+}
+function acuracia(raiz, pts) {
+  if (!pts.length) return null;
+  let ok = 0; for (const p of pts) if (preverAmostra(p.x, raiz).classe === p.y) ok++;
+  return ok / pts.length;
+}
+function nos(raiz) { const a = []; (function w(n) { a.push(n); if (!ehFolha(n)) { w(n.left); w(n.right); } })(raiz); return a; }
+function treinar(dados, P) {
+  const treino = dados.filter(p => !p.test);
+  return construir(treino, 0, P, "r", DOM.map(d => d.slice()));
+}
+
+/* ===================== ESTADO ===================== */
+const S = {
+  dados: dadosDaAula(),
+  P: { maxDepth: 3, minSplit: 2, minLeaf: 1 },
+  modo: "add1", mostrarTeste: true,
+  sel: "r", hovNo: null, hovCand: null,
+  probe: [52, 9], arrastando: null,
+  raiz: null,
+};
+
+/* ===================== FORMATAÇÃO ===================== */
+const f = (v, d = 3) => (v === null || v === undefined) ? "–" : v.toFixed(d).replace(".", ",");
+const pct = v => v === null ? "–" : (v * 100).toFixed(1).replace(".", ",") + "%";
+const lim = t => (Number.isInteger(t) ? String(t) : t.toFixed(1)).replace(".", ",");
+const pergunta = (col, t) => `${NOMES[col]} ≤ ${lim(t)}`;
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* ===================== RECONSTRUÇÃO ===================== */
+function rebuild() {
+  S.raiz = treinar(S.dados, S.P);
+  const ids = new Set(nos(S.raiz).map(n => n.id));
+  if (!ids.has(S.sel)) S.sel = "r";
+  if (S.hovNo && !ids.has(S.hovNo)) S.hovNo = null;
+  S.hovCand = null;
+  drawAll();
+}
+function noPorId(id) { return nos(S.raiz).find(n => n.id === id) || S.raiz; }
+function caminho(x) {
+  const passos = []; let no = S.raiz;
+  while (!ehFolha(no)) { const sim = x[no.feature] <= no.threshold; passos.push({ no, sim }); no = sim ? no.left : no.right; }
+  return { passos, folha: no };
+}
+function drawAll() { drawStats(); drawPlot(); drawTree(); drawNo(); drawCands(); drawPath(); drawDepth(); }
+
+/* ===================== RESUMO ===================== */
+function drawStats() {
+  const treino = S.dados.filter(p => !p.test), teste = S.dados.filter(p => p.test);
+  const all = nos(S.raiz), folhas = all.filter(ehFolha);
+  $("st-train").textContent = pct(acuracia(S.raiz, treino));
+  $("st-test").textContent = pct(acuracia(S.raiz, teste));
+  $("st-depth").textContent = Math.max(...folhas.map(n => n.depth));
+  $("st-leaves").textContent = `${folhas.length} · ${all.length}`;
+  $("st-gini").textContent = f(S.raiz.impureza);
+}
+
+/* ===================== PLANO (canvas) ===================== */
+const cv = $("plot"), ctx = cv.getContext("2d");
+let geo = null;
+function layoutPlot() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const m = { l: 44, r: 12, t: 12, b: 40 };
+  geo = { W: r.width, H: r.height, m,
+    sx: v => m.l + (v - DOM[0][0]) / (DOM[0][1] - DOM[0][0]) * (r.width - m.l - m.r),
+    sy: v => r.height - m.b - (v - DOM[1][0]) / (DOM[1][1] - DOM[1][0]) * (r.height - m.t - m.b),
+    ix: px => DOM[0][0] + (px - m.l) / (r.width - m.l - m.r) * (DOM[0][1] - DOM[0][0]),
+    iy: py => DOM[1][0] + (r.height - m.b - py) / (r.height - m.t - m.b) * (DOM[1][1] - DOM[1][0]) };
+}
+function rectOf(b) {
+  const x0 = geo.sx(b[0][0]), x1 = geo.sx(b[0][1]), y0 = geo.sy(b[1][1]), y1 = geo.sy(b[1][0]);
+  return [x0, y0, x1 - x0, y1 - y0];
+}
+function drawPlot() {
+  if (!geo) layoutPlot();
+  const { W, H, m } = geo;
+  const C = { bg: cssVar("--panel-2"), line: cssVar("--line"), muted: cssVar("--muted"), fg: cssVar("--fg"),
+              c0: cssVar("--c0"), c1: cssVar("--c1"), f0: cssVar("--c0-fill"), f1: cssVar("--c1-fill"),
+              acc: cssVar("--accent"), hi: cssVar("--hi"), panel: cssVar("--panel") };
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+
+  // regiões das folhas
+  const all = nos(S.raiz), folhas = all.filter(ehFolha);
+  for (const lf of folhas) { const [x, y, w, h] = rectOf(lf.bounds); ctx.fillStyle = lf.classe ? C.f1 : C.f0; ctx.fillRect(x, y, w, h); }
+
+  // grade e eixos
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+  ctx.font = `11px ${cssVar("--font-mono")}`; ctx.fillStyle = C.muted;
+  for (let a = 20; a <= 65; a += 5) { const x = geo.sx(a); ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, H - m.b); ctx.stroke(); ctx.textAlign = "center"; ctx.fillText(a, x, H - m.b + 16); }
+  for (let v = 0; v <= 12; v += 2) { const y = geo.sy(v); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(W - m.r, y); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(v, m.l - 8, y + 4); }
+  ctx.setLineDash([]);
+  ctx.textAlign = "center"; ctx.fillText("Idade (anos)", m.l + (W - m.l - m.r) / 2, H - 6);
+  ctx.save(); ctx.translate(12, m.t + (H - m.t - m.b) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Visitas no mês", 0, 0); ctx.restore();
+
+  // linhas de corte dos nós internos
+  for (const n of all) if (!ehFolha(n)) {
+    const b = n.bounds; ctx.strokeStyle = C.fg; ctx.globalAlpha = .55; ctx.lineWidth = 1.4; ctx.beginPath();
+    if (n.feature === 0) { const x = geo.sx(n.threshold); ctx.moveTo(x, geo.sy(b[1][1])); ctx.lineTo(x, geo.sy(b[1][0])); }
+    else { const y = geo.sy(n.threshold); ctx.moveTo(geo.sx(b[0][0]), y); ctx.lineTo(geo.sx(b[0][1]), y); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // nó em foco (hover ou selecionado): contorno da região
+  const foco = noPorId(S.hovNo || S.sel);
+  { const [x, y, w, h] = rectOf(foco.bounds); ctx.strokeStyle = C.acc; ctx.lineWidth = 2.2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2); }
+
+  // prévia de corte candidato
+  if (S.hovCand) {
+    const c = S.hovCand, b = noPorId(S.sel).bounds; ctx.strokeStyle = C.acc; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath();
+    if (c.col === 0) { const x = geo.sx(c.t); ctx.moveTo(x, geo.sy(b[1][1])); ctx.lineTo(x, geo.sy(b[1][0])); }
+    else { const y = geo.sy(c.t); ctx.moveTo(geo.sx(b[0][0]), y); ctx.lineTo(geo.sx(b[0][1]), y); }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // pontos (amostras do nó em foco ficam opacas)
+  const ativos = new Set(foco.pts.map(p => p.id));
+  for (const p of S.dados) {
+    if (p.test && !S.mostrarTeste) continue;
+    const x = geo.sx(p.x[0]), y = geo.sy(p.x[1]), col = p.y ? C.c1 : C.c0;
+    ctx.globalAlpha = p.test || ativos.has(p.id) ? 1 : .35;
+    ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+    if (p.test) { ctx.lineWidth = 2.4; ctx.strokeStyle = col; ctx.fillStyle = C.bg; ctx.fill(); ctx.stroke(); }
+    else { ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = C.panel; ctx.stroke(); }
+    if (p.test && preverAmostra(p.x, S.raiz).classe !== p.y) { // erro de teste: marca com x
+      ctx.strokeStyle = C.fg; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // cliente explicado
+  { const x = geo.sx(S.probe[0]), y = geo.sy(S.probe[1]);
+    ctx.fillStyle = C.hi; ctx.font = `bold 20px ${cssVar("--font-body")}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("✦", x, y); ctx.textBaseline = "alphabetic"; }
+}
+function pontoMaisPerto(px, py, raio = 14) {
+  let best = null, bd = raio;
+  for (const p of S.dados) { if (p.test && !S.mostrarTeste) continue; const d = Math.hypot(geo.sx(p.x[0]) - px, geo.sy(p.x[1]) - py); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+function clampData(px, py) {
+  return [Math.max(DOM[0][0] + 1, Math.min(DOM[0][1] - 1, Math.round(geo.ix(px)))), Math.max(DOM[1][0], Math.min(DOM[1][1], Math.round(geo.iy(py))))];
+}
+function posEvento(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+cv.addEventListener("pointerdown", e => {
+  const [px, py] = posEvento(e);
+  if (S.modo === "add1" || S.modo === "add0") {
+    S.dados.push({ id: nextId++, x: clampData(px, py), y: S.modo === "add1" ? 1 : 0, test: false }); rebuild();
+  } else if (S.modo === "del") {
+    const p = pontoMaisPerto(px, py); if (p) { S.dados = S.dados.filter(q => q !== p); rebuild(); }
+  } else if (S.modo === "move") {
+    const p = pontoMaisPerto(px, py); if (p) { S.arrastando = p; cv.setPointerCapture(e.pointerId); }
+  }
+});
+cv.addEventListener("pointermove", e => {
+  const [px, py] = posEvento(e);
+  if (S.arrastando) { const nx = clampData(px, py); if (nx.join() !== S.arrastando.x.join()) { S.arrastando.x = nx; rebuild(); } return; }
+  const pr = clampData(px, py);
+  if (pr.join() !== S.probe.join()) { S.probe = pr; syncProbeInputs(); drawPlot(); drawTree(); drawPath(); }
+});
+cv.addEventListener("pointerup", () => { S.arrastando = null; });
+cv.addEventListener("pointercancel", () => { S.arrastando = null; });
+new ResizeObserver(() => { layoutPlot(); drawPlot(); }).observe(cv);
+
+/* ===================== ÁRVORE (svg) ===================== */
+function drawTree() {
+  const svg = $("tree"); svg.innerHTML = "";
+  const NW = 136, NH = 58, GX = 14, GY = 46;
+  // posição: folhas em ordem, nós internos no meio dos filhos
+  let k = 0; const pos = new Map();
+  (function place(n) {
+    if (ehFolha(n)) { pos.set(n.id, { x: k++ * (NW + GX), y: n.depth * (NH + GY) }); return; }
+    place(n.left); place(n.right);
+    pos.set(n.id, { x: (pos.get(n.left.id).x + pos.get(n.right.id).x) / 2, y: n.depth * (NH + GY) });
+  })(S.raiz);
+  const all = nos(S.raiz), maxD = Math.max(...all.map(n => n.depth));
+  const W = Math.max(k * (NW + GX) - GX, NW) + 16, H = (maxD + 1) * (NH + GY) - GY + 16;
+  svg.setAttribute("viewBox", `-8 -8 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+  const onPath = new Set(caminho(S.probe).passos.map(s => s.no.id)); const folhaP = caminho(S.probe).folha.id; onPath.add(folhaP);
+
+  for (const n of all) if (!ehFolha(n)) for (const [ch, lbl] of [[n.left, "Sim"], [n.right, "Não"]]) {
+    const a = pos.get(n.id), b = pos.get(ch.id), x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y;
+    const on = onPath.has(n.id) && onPath.has(ch.id);
+    el("path", { d: `M${x1},${y1} C${x1},${y1 + GY / 2} ${x2},${y2 - GY / 2} ${x2},${y2}`, class: "edge" + (on ? " onpath" : "") }, svg);
+    const t = el("text", { x: (x1 + x2) / 2 + (lbl === "Sim" ? -6 : 6), y: (y1 + y2) / 2 + 4, "text-anchor": lbl === "Sim" ? "end" : "start", class: "edge-label" + (on ? " onpath" : "") }, svg);
+    t.textContent = lbl;
+  }
+  const c0 = cssVar("--c0"), c1 = cssVar("--c1");
+  for (const n of all) {
+    const p = pos.get(n.id), leaf = ehFolha(n);
+    const g = el("g", { class: "node" + (leaf ? " leaf" : "") + (n.id === S.sel ? " sel" : "") + (n.id === S.hovNo ? " hov" : "") + (onPath.has(n.id) ? " onpath" : ""),
+                        transform: `translate(${p.x},${p.y})`, tabindex: 0, role: "button",
+                        "aria-label": leaf ? `Folha classe ${n.classe}, ${n.samples} amostras` : `Nó ${pergunta(n.feature, n.threshold)}, ${n.samples} amostras` }, svg);
+    el("rect", { class: "box", width: NW, height: NH, rx: 8 }, g);
+    const t1 = el("text", { x: 10, y: 20, "font-size": 12.5, "font-weight": 700 }, g);
+    t1.textContent = leaf ? (n.classe ? "Compra (1)" : "Não compra (0)") : pergunta(n.feature, n.threshold) + "?";
+    if (leaf) t1.setAttribute("fill", n.classe ? c1 : c0);
+    const t2 = el("text", { x: 10, y: 37, "font-size": 11, class: "sub" }, g);
+    t2.textContent = `n=${n.samples} · Gini ${f(n.impureza)}`;
+    const bw = NW - 20, p1 = n.samples ? n.counts[1] / n.samples : 0;
+    el("rect", { x: 10, y: 45, width: bw * (1 - p1), height: 5, rx: 2, fill: c0 }, g);
+    el("rect", { x: 10 + bw * (1 - p1), y: 45, width: bw * p1, height: 5, rx: 2, fill: c1 }, g);
+    const pick = () => { S.sel = n.id; S.hovCand = null; drawPlot(); drawTree(); drawNo(); drawCands(); };
+    g.addEventListener("click", pick);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    g.addEventListener("pointerenter", () => { S.hovNo = n.id; drawPlot(); g.classList.add("hov"); });
+    g.addEventListener("pointerleave", () => { S.hovNo = null; drawPlot(); g.classList.remove("hov"); });
+  }
+}
+
+/* ===================== NÓ SELECIONADO: GINI À MÃO ===================== */
+function drawNo() {
+  const n = noPorId(S.sel), [c0, c1] = n.counts, N = n.samples;
+  const nome = n.id === "r" ? "Raiz" : `Profundidade ${n.depth} · ${n.id.slice(1).split("").map(s => s === "L" ? "Sim" : "Não").join(" → ")}`;
+  $("no-titulo").textContent = nome;
+  $("no-status").innerHTML = ehFolha(n)
+    ? `<span class="pill stop">Folha · ${n.motivo}</span>`
+    : `<span class="pill split">Nó interno · pergunta ${pergunta(n.feature, n.threshold)}?</span>`;
+  if (!N) { $("gini-math").innerHTML = `<span class="k">Nenhuma amostra de treino chegou aqui.</span>`; $("pond-math").innerHTML = ""; return; }
+  const p0 = c0 / N, p1 = c1 / N;
+  $("gini-math").innerHTML =
+    `<span class="k">contagens</span>   <span class="z0">n₀ = ${c0}</span>   <span class="z1">n₁ = ${c1}</span>   <span class="k">n = ${N}</span><br>` +
+    `<span class="k">proporções</span>  p₀ = ${c0}/${N} = <span class="v">${f(p0)}</span>   p₁ = ${c1}/${N} = <span class="v">${f(p1)}</span><br>` +
+    `<span class="k">quadrados</span>   p₀² = ${f(p0 * p0, 4)}   p₁² = ${f(p1 * p1, 4)}   <span class="k">soma</span> = ${f(p0 * p0 + p1 * p1, 4)}<br>` +
+    `<span class="k">Gini</span>        1 − ${f(p0 * p0 + p1 * p1, 4)} = <span class="a">${f(n.impureza, 4)}</span>   <span class="k">→ classe majoritária: ${n.classe}</span>`;
+  if (ehFolha(n)) {
+    $("pond-math").innerHTML = `<span class="k">Folha: devolve classes[np.argmax(contagens)] = </span><span class="v">${n.classe}</span><span class="k"> para qualquer cliente que chegar aqui.</span>`;
+  } else {
+    const L = n.left, R = n.right;
+    $("pond-math").innerHTML =
+      `<span class="k">Sim (≤)</span>  ${L.samples} amostras [${L.counts[0]}|${L.counts[1]}]  Gini ${f(L.impureza)}<br>` +
+      `<span class="k">Não (>)</span>  ${R.samples} amostras [${R.counts[0]}|${R.counts[1]}]  Gini ${f(R.impureza)}<br>` +
+      `<span class="k">ponderado</span> ${L.samples}/${N}·${f(L.impureza)} + ${R.samples}/${N}·${f(R.impureza)} = <span class="v">${f(n.impPond, 4)}</span><br>` +
+      `<span class="k">ganho</span>     ${f(n.impureza, 4)} − ${f(n.impPond, 4)} = <span class="a">${f(n.impureza - n.impPond, 4)}</span>`;
+  }
+}
+
+/* ===================== BUSCA DO MELHOR CORTE ===================== */
+let candsAtuais = [];
+function drawCands() {
+  const n = noPorId(S.sel);
+  candsAtuais = n.samples ? candidatos(n.pts, S.P.minLeaf) : [];
+  const best = melhorDivisao(candsAtuais);
+  $("cortes-sub").textContent = `${candsAtuais.length} cortes testados no nó · ${n.samples} amostras`;
+  const W = 300, H = 170, m = { l: 34, r: 8, t: 10, b: 26 };
+  const sy = v => H - m.b - v / 0.5 * (H - m.t - m.b);
+  for (const col of [0, 1]) {
+    const svg = $("cand" + col); svg.innerHTML = "";
+    const b = n.bounds[col], sx = v => m.l + (v - b[0]) / (b[1] - b[0]) * (W - m.l - m.r);
+    for (const g of [0, .1, .2, .3, .4, .5]) { el("line", { x1: m.l, x2: W - m.r, y1: sy(g), y2: sy(g), class: "grid" }, svg); const t = el("text", { x: m.l - 6, y: sy(g) + 3, "text-anchor": "end" }, svg); t.textContent = f(g, 1); }
+    const ticks = col === 0 ? 5 : 4;
+    for (let i = 0; i <= ticks; i++) { const v = b[0] + (b[1] - b[0]) * i / ticks; const t = el("text", { x: sx(v), y: H - 8, "text-anchor": "middle" }, svg); t.textContent = lim(Math.round(v * 2) / 2); }
+    el("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "axis" }, svg);
+    // Gini do nó pai: o ganho é a distância abaixo desta linha
+    el("line", { x1: m.l, x2: W - m.r, y1: sy(n.impureza), y2: sy(n.impureza), stroke: cssVar("--fg"), "stroke-dasharray": "5 4", "stroke-width": 1, opacity: .6 }, svg);
+    const tl = el("text", { x: W - m.r, y: sy(n.impureza) - 4, "text-anchor": "end" }, svg); tl.textContent = `Gini do nó ${f(n.impureza)}`;
+    const cs = candsAtuais.filter(c => c.col === col);
+    if (cs.length > 1) el("polyline", { points: cs.filter(c => c.valido).map(c => `${sx(c.t)},${sy(c.imp)}`).join(" "), fill: "none", stroke: cssVar("--muted"), "stroke-width": 1, opacity: .6 }, svg);
+    if (!cs.length) { const t = el("text", { x: (m.l + W - m.r) / 2, y: H / 2, "text-anchor": "middle" }, svg); t.textContent = "sem cortes possíveis"; }
+    for (const c of cs) {
+      const isBest = best && c === best, isHov = S.hovCand && S.hovCand.col === c.col && S.hovCand.t === c.t;
+      const pt = el("circle", { cx: sx(c.t), cy: sy(c.imp), r: isBest || isHov ? 6 : 4, class: "cpt",
+        fill: !c.valido ? "none" : isBest ? cssVar("--accent") : cssVar("--fg"),
+        stroke: !c.valido ? cssVar("--muted") : isHov ? cssVar("--accent") : "none", "stroke-width": 1.6, tabindex: 0,
+        "aria-label": `${pergunta(c.col, c.t)}, ponderado ${f(c.imp)}` }, svg);
+      pt.addEventListener("pointerenter", () => hoverCand(c));
+      pt.addEventListener("focus", () => hoverCand(c));
+      pt.addEventListener("pointerleave", () => hoverCand(null));
+      pt.addEventListener("blur", () => hoverCand(null));
+    }
+  }
+  // tabela: os 6 melhores cortes válidos (+ o melhor sempre no topo)
+  const ord = candsAtuais.slice().sort((a, b) => (b.valido - a.valido) || (a.imp - b.imp)).slice(0, 6);
+  const tb = $("cand-table"); tb.innerHTML = "";
+  for (const c of ord) {
+    const tr = document.createElement("tr"); if (best && c === best) tr.className = "best";
+    if (S.hovCand && S.hovCand === c) tr.classList.add("on");
+    tr.innerHTML = `<td${c.valido ? "" : ' class="bad"'}>${pergunta(c.col, c.t)}</td><td>[${c.cE[0]}|${c.cE[1]}]</td><td>[${c.cD[0]}|${c.cD[1]}]</td><td>${f(c.imp, 4)}</td><td>${f(n.impureza - c.imp, 4)}</td>`;
+    tr.addEventListener("pointerenter", () => hoverCand(c)); tr.addEventListener("pointerleave", () => hoverCand(null));
+    tb.appendChild(tr);
+  }
+  readoutCand(best, true);
+}
+function readoutCand(c, ehMelhor) {
+  const n = noPorId(S.sel), r = $("cand-readout");
+  if (!c) { r.innerHTML = ehFolha(n) && n.samples ? `Nenhum corte válido escolhido aqui: <b>${n.motivo}</b>.` : "Passe o mouse num ponto ou numa linha da tabela para pré-visualizar o corte no plano."; return; }
+  r.innerHTML = `${ehMelhor ? "<b>Melhor corte:</b> " : ""}<b>${pergunta(c.col, c.t)}</b> → Sim ${c.nE} [${c.cE[0]}|${c.cE[1]}] Gini ${f(c.gE)} · Não ${c.nD} [${c.cD[0]}|${c.cD[1]}] Gini ${f(c.gD)}<br>` +
+    `ponderado = ${c.nE}/${n.samples}·${f(c.gE)} + ${c.nD}/${n.samples}·${f(c.gD)} = <b>${f(c.imp, 4)}</b> · ganho <b>${f(n.impureza - c.imp, 4)}</b>` +
+    (c.valido ? "" : ` · <span style="color:var(--danger)">inválido: um lado tem menos de min_samples_leaf = ${S.P.minLeaf}</span>`) +
+    (ehMelhor && ehFolha(n) ? ` · <span style="color:var(--c0)">não usado: ${n.motivo}</span>` : "");
+}
+function hoverCand(c) {
+  S.hovCand = c; drawPlot();
+  const n = noPorId(S.sel);
+  readoutCand(c || melhorDivisao(candsAtuais), !c);
+  // destaca na tabela e no gráfico sem redesenhar tudo
+  document.querySelectorAll("#cand-table tr").forEach((tr, i) => tr.classList.toggle("on", false));
+  if (c) { const rows = [...document.querySelectorAll("#cand-table tr")]; rows.forEach(tr => { if (tr.firstChild.textContent === pergunta(c.col, c.t)) tr.classList.add("on"); }); }
+}
+
+/* ===================== PERCURSO ===================== */
+function syncProbeInputs() { $("pr-idade").value = S.probe[0]; $("pr-vis").value = S.probe[1]; }
+function drawPath() {
+  const { passos, folha } = caminho(S.probe), ol = $("path-list"); ol.innerHTML = "";
+  for (const { no, sim } of passos) {
+    const li = document.createElement("li"), v = S.probe[no.feature];
+    li.innerHTML = `${NOMES[no.feature]} ${v} ≤ ${lim(no.threshold)}? <span class="${sim ? "yes" : "no"}">${sim ? "Sim → esquerda" : "Não → direita"}</span>`;
+    ol.appendChild(li);
+  }
+  if (!passos.length) { const li = document.createElement("li"); li.textContent = "A árvore é só a raiz (max_depth = 0): nenhuma pergunta é feita."; ol.appendChild(li); }
+  const conf = folha.samples ? folha.counts[folha.classe] / folha.samples : 0;
+  $("verdict").innerHTML = `<span>Folha →</span> <strong style="color:var(${folha.classe ? "--c1" : "--c0"})">classe ${folha.classe} · ${folha.classe ? "compra" : "não compra"}</strong>` +
+    `<span style="color:var(--muted)">${folha.counts[folha.classe]} de ${folha.samples} clientes de treino dessa folha (${pct(conf)}) eram dessa classe</span>`;
+}
+function setProbe(x) { S.probe = x; syncProbeInputs(); drawPlot(); drawTree(); drawPath(); }
+$("pr-idade").addEventListener("input", e => { const v = Math.max(15, Math.min(68, +e.target.value || 0)); setProbe([v, S.probe[1]]); });
+$("pr-vis").addEventListener("input", e => { const v = Math.max(0, Math.min(12, +e.target.value || 0)); setProbe([S.probe[0], v]); });
+$("pr-slide").addEventListener("click", () => setProbe([52, 9]));
+
+/* ===================== PROFUNDIDADE × ACURÁCIA ===================== */
+function drawDepth() {
+  const svg = $("depth"); svg.innerHTML = "";
+  const W = 420, H = 230, m = { l: 40, r: 12, t: 14, b: 34 }, D = 7;
+  const treino = S.dados.filter(p => !p.test), teste = S.dados.filter(p => p.test);
+  const serie = [];
+  for (let d = 0; d <= D; d++) { const r = treinar(S.dados, { ...S.P, maxDepth: d }); serie.push({ d, tr: acuracia(r, treino), te: acuracia(r, teste), folhas: nos(r).filter(ehFolha).length }); }
+  const sx = d => m.l + d / D * (W - m.l - m.r), sy = v => H - m.b - (v - .4) / .6 * (H - m.t - m.b);
+  for (const g of [.4, .5, .6, .7, .8, .9, 1]) { el("line", { x1: m.l, x2: W - m.r, y1: sy(g), y2: sy(g), class: "grid" }, svg); const t = el("text", { x: m.l - 6, y: sy(g) + 4, "text-anchor": "end" }, svg); t.textContent = Math.round(g * 100) + "%"; }
+  const step = (W - m.l - m.r) / D;
+  for (const s of serie) {
+    const cur = s.d === S.P.maxDepth;
+    const r = el("rect", { x: sx(s.d) - step / 2, y: m.t, width: step, height: H - m.t - m.b, class: "dcol", fill: cur ? cssVar("--accent") : "transparent", opacity: cur ? .12 : 1, tabindex: 0, "aria-label": `max_depth ${s.d}` }, svg);
+    const pick = () => { S.P.maxDepth = s.d; $("p-depth").value = s.d; $("o-depth").textContent = s.d; rebuild(); };
+    r.addEventListener("click", pick); r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    const t = el("text", { x: sx(s.d), y: H - m.b + 16, "text-anchor": "middle" }, svg); t.textContent = s.d;
+  }
+  const xl = el("text", { x: (m.l + W - m.r) / 2, y: H - 4, "text-anchor": "middle" }, svg); xl.textContent = "max_depth";
+  const line = (key, dash, color) => {
+    const pts = serie.filter(s => s[key] !== null);
+    el("polyline", { points: pts.map(s => `${sx(s.d)},${sy(s[key])}`).join(" "), fill: "none", stroke: color, "stroke-width": 2, "stroke-dasharray": dash }, svg);
+    for (const s of pts) el("circle", { cx: sx(s.d), cy: sy(s[key]), r: s.d === S.P.maxDepth ? 5 : 3.5, fill: dash ? cssVar("--panel") : color, stroke: color, "stroke-width": 2 }, svg);
+  };
+  line("tr", "5 4", cssVar("--fg")); line("te", "", cssVar("--accent"));
+  const lg = el("g", { transform: `translate(${m.l + 8},${m.t + 6})` }, svg);
+  el("line", { x1: 0, x2: 18, y1: 0, y2: 0, stroke: cssVar("--fg"), "stroke-width": 2, "stroke-dasharray": "5 4" }, lg); const a = el("text", { x: 24, y: 4 }, lg); a.textContent = "treino";
+  el("line", { x1: 76, x2: 94, y1: 0, y2: 0, stroke: cssVar("--accent"), "stroke-width": 2 }, lg); const b = el("text", { x: 100, y: 4 }, lg); b.textContent = "teste";
+  const cur = serie[S.P.maxDepth];
+  const bestTe = Math.max(...serie.filter(s => s.te !== null).map(s => s.te));
+  const menor = serie.find(s => s.te === bestTe);
+  $("depth-note").innerHTML = cur.te === null ? "Sem clientes de teste: marque “Mostrar teste” ou restaure os dados da aula." :
+    `Com max_depth = ${cur.d}: treino ${pct(cur.tr)}, teste ${pct(cur.te)}, ${cur.folhas} folhas. O treino só sobe com a profundidade; o teste para de melhorar a partir de max_depth = ${menor.d}. Entre profundidades empatadas no teste, fique com a mais simples.`;
+}
+
+/* ===================== CONTROLES ===================== */
+function setModo(m) { S.modo = m; for (const id of ["add1", "add0", "move", "del"]) $("m-" + id).setAttribute("aria-pressed", String(id === m)); cv.style.cursor = m === "move" ? "grab" : m === "del" ? "not-allowed" : "crosshair"; }
+for (const id of ["add1", "add0", "move", "del"]) $("m-" + id).addEventListener("click", () => setModo(id));
+$("show-test").addEventListener("change", e => { S.mostrarTeste = e.target.checked; drawPlot(); });
+$("reset").addEventListener("click", () => { S.dados = dadosDaAula(); S.sel = "r"; setProbe([52, 9]); rebuild(); });
+$("clear").addEventListener("click", () => { S.dados = []; S.sel = "r"; rebuild(); });
+for (const [id, key, out] of [["p-depth", "maxDepth", "o-depth"], ["p-split", "minSplit", "o-split"], ["p-leaf", "minLeaf", "o-leaf"]])
+  $(id).addEventListener("input", e => { S.P[key] = +e.target.value; $(out).textContent = e.target.value; rebuild(); });
+// redesenha quando o tema muda
+const mq = window.matchMedia("(prefers-color-scheme: dark)");
+mq.addEventListener && mq.addEventListener("change", drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+setModo("add1");
+layoutPlot();
+rebuild();
+</script>
+</body></html>
